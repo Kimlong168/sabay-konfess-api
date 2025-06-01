@@ -5,14 +5,19 @@ import { UsersModule } from 'src/users/users.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/access-jwt.strategy';
+import { TelegramModule } from 'src/telegram/telegram.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Session } from './entities/session.entity';
+
 @Module({
   imports: [
     UsersModule,
+    TelegramModule,
     PassportModule,
     JwtModule.register({
-      secret: 'mySecretKey',
-      signOptions: { expiresIn: '3600s' }, //1h
+      secret: process.env.JWT_SECRET,
     }),
+    TypeOrmModule.forFeature([Session]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

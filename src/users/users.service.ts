@@ -6,13 +6,18 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './user.repository';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { IsNull, Not } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, file: Express.Multer.File) {
     try {
       const userEntity = this.userRepository.create(createUserDto);
       const passwordHash = await this.hashPassword(createUserDto.password);
@@ -22,6 +27,11 @@ export class UsersService {
       }
 
       userEntity.password = passwordHash;
+
+      if (file) {
+        const image = await this.cloudinaryService.uploadImage(file);
+        userEntity.profileImage = image.secure_url;
+      }
 
       const user = await this.userRepository.save(userEntity);
 
@@ -51,11 +61,20 @@ export class UsersService {
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    file: Express.Multer.File,
+  ) {
     const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (file) {
+      const image = await this.cloudinaryService.uploadImage(file);
+      user.profileImage = image.secure_url;
     }
 
     const savedUser = await this.userRepository.save({
@@ -66,7 +85,6 @@ export class UsersService {
     if (!savedUser) {
       throw new BadRequestException('User not updated');
     }
-
     return savedUser;
   }
 
@@ -110,7 +128,25 @@ export class UsersService {
     return await this.userRepository.findOne({ where: { phone } });
   }
 
+  async findByUsername(username: string) {
+    return await this.userRepository.findOne({ where: { username } });
+  }
+
   async findByChatId(chatId: string) {
     return await this.userRepository.findOne({ where: { chatId } });
+  }
+
+  async findAllWithChatId(limit?: number) {
+    const options: any = {
+      where: {
+        chatId: Not(IsNull()),
+      },
+    };
+
+    if (limit) {
+      options.take = limit;
+    }
+
+    return this.userRepository.find(options);
   }
 }

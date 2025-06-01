@@ -1,27 +1,28 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Role } from 'src/shared/constants/role.enum';
 
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
   readonly name: string;
 
-  @IsNotEmpty()
   @IsString()
-  readonly phone: string;
-
   @IsNotEmpty()
-  @IsString()
-  readonly role: string;
+  readonly username: string;
 
   @IsNotEmpty()
   @IsString()
   readonly password: string;
 
+  @IsNotEmpty()
   @IsString()
-  @IsOptional()
-  readonly chatId?: string;
+  readonly role: Role;
 
   @IsString()
   @IsOptional()
-  readonly profileImage?: string;
+  readonly phone?: string;
+
+  @IsString()
+  @IsOptional()
+  readonly chatId?: string;
 }

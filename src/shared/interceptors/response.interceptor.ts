@@ -12,10 +12,10 @@ import { SUCCESS_MESSAGES } from '../constants/response-messages';
 export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
-      map((data) => ({
+      map((x) => ({
         success: true,
-        message: SUCCESS_MESSAGES.DEFAULT,
-        data,
+        message: x.message || SUCCESS_MESSAGES.DEFAULT,
+        data: x.data,
       })),
     );
   }

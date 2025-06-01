@@ -1,8 +1,10 @@
 export const SUCCESS_MESSAGES = {
   DEFAULT: 'Request successful',
-  USER_CREATED: 'User created successfully',
-  USER_FETCHED: 'User fetched successfully',
-  USER_UPDATED: 'User updated successfully',
+  CREATED: 'Created successfully',
+  FETCHED: 'Fetched successfully',
+  UPDATED: 'Updated successfully',
+  DELETED: 'Deleted successfully',
+  SENT: 'Sent successfully',
 };
 
 export const ERROR_MESSAGES = {
