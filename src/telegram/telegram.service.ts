@@ -5,9 +5,10 @@ import { SendDocumentDto } from './dto/send-document.dto';
 import { UsersService } from 'src/users/users.service';
 import { AllExceptionsFilter } from 'src/shared/filters/all-exceptions.filter';
 import { BroadcastMessageDto } from './dto/broadcast-message.dto';
-import * as TelegramBot from 'node-telegram-bot-api';
 import { escapeMarkdown } from 'src/shared/utils/escape-markdown ';
 import { Role } from 'src/shared/constants/role.enum';
+import { ConfigService } from '@nestjs/config';
+import * as TelegramBot from 'node-telegram-bot-api';
 
 @Injectable()
 export class TelegramService {
@@ -17,28 +18,34 @@ export class TelegramService {
   constructor(
     private readonly userService: UsersService,
     private readonly exceptionFilter: AllExceptionsFilter,
+    private configService: ConfigService,
   ) {}
 
+  readonly TELEGRAM_BOT_TOKEN =
+    this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+  readonly CLIENT_BASE_URL = this.configService.get<string>('CLIENT_BASE_URL');
+
   onModuleInit() {
-    this.bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+    this.bot = new TelegramBot(this.TELEGRAM_BOT_TOKEN, {
       polling: true,
     });
 
-    this.bot.onText(/\/start (.+)/, async (msg: any) => {
-      const chatId = msg.chat.id;
+    this.bot.onText(/\/(bind|start)/, async (msg: any) => {
+      const { username, first_name, last_name, id: chatId } = msg.chat;
+
       try {
         const user = await this.userService.findByChatId(chatId);
-        const { name, phone, role } = user;
-
         // create a new user
         if (!user) {
-          const hashPassword = await this.userService.hashPassword(chatId);
+          const hashPassword = await this.userService.hashPassword(
+            chatId.toString(),
+          );
           await this.userService.create(
             {
-              username: msg.chat?.username,
+              name: first_name + ' ' + last_name,
+              username: username,
               password: hashPassword,
               chatId,
-              name: msg.chat?.first_name + ' ' + msg.chat?.last_name,
               role: Role.USER,
             },
             null,
@@ -47,15 +54,14 @@ export class TelegramService {
         const title = !user
           ? '✅ Your Telegram is now linked'
           : '💟 Your account has been linked already';
+
         const message =
-          `*${title}*\n\n` +
-          `*Name:* ${escapeMarkdown(name)}\n` +
-          `*Username:* ${escapeMarkdown(msg.chat?.username || '')}\n` +
-          `*Phone:* ${escapeMarkdown(phone)}\n` +
-          `*Role:* ${escapeMarkdown(role)}\n` +
-          `*Chat ID:* \`${chatId}\`\n` +
-          `*Confess Link:* \`${process.env.CLIENT_BASE_URL}\`\n` +
-          `Copy your confess link and let others confess anonymously. You can now receive messages via this bot\\. Enjoy it🇰🇭✨🎉`;
+          `*${escapeMarkdown(title)}*\n\n` +
+          `*Name:* ${escapeMarkdown(first_name + ' ' + last_name)}\n` +
+          `*Username:* ${escapeMarkdown(username)}\n` +
+          `*Chat ID:* \`${escapeMarkdown(chatId)}\`\n` +
+          `*Confess Link:* \`${this.CLIENT_BASE_URL}/${username}/${chatId}\`\n\n` +
+          `Copy your confess link and let others confess anonymously\\. You can now receive messages via this bot\\. Enjoy it🇰🇭✨🎉`;
 
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'MarkdownV2',
@@ -73,15 +79,14 @@ export class TelegramService {
       const chatId = msg.chat.id;
       try {
         const user = await this.userService.findByChatId(chatId);
-        const { name, phone, role } = user;
+        const { name, role, username } = user;
         const message =
           `💟 *This is your account info*\n\n` +
           `*Name:* ${escapeMarkdown(name)}\n` +
-          `*Phone:* ${escapeMarkdown(phone)}\n` +
           `*Role:* ${escapeMarkdown(role)}\n` +
-          `*Username:* ${escapeMarkdown(msg.chat?.username || '')}\n` +
+          `*Username:* ${escapeMarkdown(username)}\n` +
           `*Chat ID:* \`${chatId}\`\n` +
-          `*Confess Link:* \`https:...\``;
+          `*Confess Link:* \`${this.CLIENT_BASE_URL}/${username}/${chatId}\`\n\n`;
 
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'MarkdownV2',
