@@ -24,6 +24,8 @@ export class TelegramService {
   readonly TELEGRAM_BOT_TOKEN =
     this.configService.get<string>('TELEGRAM_BOT_TOKEN');
   readonly CLIENT_BASE_URL = this.configService.get<string>('CLIENT_BASE_URL');
+  readonly TELEGRAM_CHAT_ID =
+    this.configService.get<string>('TELEGRAM_CHAT_ID');
 
   onModuleInit() {
     this.bot = new TelegramBot(this.TELEGRAM_BOT_TOKEN, {
@@ -64,6 +66,10 @@ export class TelegramService {
           `Copy your confess link and let others confess anonymously\\. You can now receive messages via this bot\\. Enjoy it🇰🇭✨🎉`;
 
         await this.bot.sendMessage(chatId, message, {
+          parse_mode: 'MarkdownV2',
+        });
+
+        await this.bot.sendMessage(this.TELEGRAM_CHAT_ID, message, {
           parse_mode: 'MarkdownV2',
         });
       } catch (error) {
