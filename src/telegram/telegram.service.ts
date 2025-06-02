@@ -34,6 +34,7 @@ export class TelegramService {
 
     this.bot.onText(/\/(bind|start)/, async (msg: any) => {
       const { username, first_name, last_name, id: chatId } = msg.chat;
+      const fullName = `${first_name ?? ''} ${last_name ?? ''}`.trim();
 
       try {
         const user = await this.userService.findByChatId(chatId);
@@ -44,7 +45,7 @@ export class TelegramService {
           );
           await this.userService.create(
             {
-              name: first_name + ' ' + last_name,
+              name: fullName,
               username: username,
               password: hashPassword,
               chatId,
@@ -52,14 +53,25 @@ export class TelegramService {
             },
             null,
           );
+
+          const message =
+            `*New User Registered*\n\n` +
+            `*Name:* ${escapeMarkdown(fullName)}\n` +
+            `*Username:* ${escapeMarkdown(username)}\n` +
+            `*Chat ID:* \`${escapeMarkdown(chatId)}\`\n` +
+            `*Confess Link:* \`${this.CLIENT_BASE_URL}/${username}/${chatId}\`\n\n`;
+          await this.bot.sendMessage(this.TELEGRAM_CHAT_ID, message, {
+            parse_mode: 'MarkdownV2',
+          });
         }
+
         const title = !user
           ? '✅ Your Telegram is now linked'
           : '💟 Your account has been linked already';
 
         const message =
           `*${escapeMarkdown(title)}*\n\n` +
-          `*Name:* ${escapeMarkdown(first_name + ' ' + last_name)}\n` +
+          `*Name:* ${escapeMarkdown(fullName)}\n` +
           `*Username:* ${escapeMarkdown(username)}\n` +
           `*Chat ID:* \`${escapeMarkdown(chatId)}\`\n` +
           `*Confess Link:* \`${this.CLIENT_BASE_URL}/${username}/${chatId}\`\n\n` +
@@ -68,10 +80,6 @@ export class TelegramService {
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'MarkdownV2',
         });
-
-        // await this.bot.sendMessage(this.TELEGRAM_CHAT_ID, message, {
-        //   parse_mode: 'MarkdownV2',
-        // });
       } catch (error) {
         this.handleBotException(error, 'Telegram /start handler');
         await this.bot.sendMessage(
@@ -174,7 +182,7 @@ export class TelegramService {
               parse_mode: 'MarkdownV2',
             });
           default:
-            return this.bot.sendMessage(user.chatId, message, {
+            return this.bot.sendMessage(user.chatId, escapeMarkdown(message), {
               parse_mode: 'MarkdownV2',
             });
         }
