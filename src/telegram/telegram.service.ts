@@ -131,7 +131,10 @@ export class TelegramService {
 
   async sendMessage(sendMessageDto: SendMessageDto) {
     const { chatId, message } = sendMessageDto;
-    return await this.bot.sendMessage(chatId, message, {
+    const timestamp = Date.now();
+    const text = `[${message}](${this.CLIENT_BASE_URL}/preview?message=${message}&time=${timestamp})`;
+
+    return await this.bot.sendMessage(chatId, text, {
       parse_mode: 'MarkdownV2',
     });
   }
