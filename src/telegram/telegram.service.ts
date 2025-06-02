@@ -69,9 +69,9 @@ export class TelegramService {
           parse_mode: 'MarkdownV2',
         });
 
-        await this.bot.sendMessage(this.TELEGRAM_CHAT_ID, message, {
-          parse_mode: 'MarkdownV2',
-        });
+        // await this.bot.sendMessage(this.TELEGRAM_CHAT_ID, message, {
+        //   parse_mode: 'MarkdownV2',
+        // });
       } catch (error) {
         this.handleBotException(error, 'Telegram /start handler');
         await this.bot.sendMessage(
