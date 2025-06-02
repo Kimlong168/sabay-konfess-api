@@ -21,18 +21,18 @@ import { Sponsorship } from './sponsorships/entities/sponsorship.entity';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: 'localhost',
-      port: 3306,
-      username: 'root',
-      password: 'example',
-      database: 'nestdb',
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT || '3306', 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
       entities: [User, Session, Sponsorship],
-      // entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      // autoLoadEntities: true,
-      synchronize: true, // Note: set to false in production
+      synchronize: true, // ⚠️ Disable in production
     }),
+
     MulterModule.register({
       // storage: multer.memoryStorage(),
       dest: './uploads',
