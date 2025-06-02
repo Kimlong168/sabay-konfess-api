@@ -101,7 +101,7 @@ export class TelegramService {
         this.handleBotException(error, 'Telegram /start handler');
         await this.bot.sendMessage(
           chatId,
-          '❌ Something went wrong while linking your Telegram.',
+          'type /start to link your telegram account first!',
         );
       }
     });

@@ -3,10 +3,12 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ResponseInterceptor } from './shared/interceptors/response.interceptor';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
+import { LoggerMiddleware } from './shared/middlewares/logger.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.use(new LoggerMiddleware().use);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
