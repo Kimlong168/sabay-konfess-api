@@ -145,14 +145,58 @@ export class TelegramService {
     this.exceptionFilter.catch(error, fakeHost as any);
   }
 
+  async sendConfession(
+    sendConfessionDto: SendConfessionDto,
+    file?: Express.Multer.File,
+  ) {
+    const { message, fileUrl, type, chatId } = sendConfessionDto;
+    let document = fileUrl;
+    let uploadedFile: { secure_url: string; public_id: string } | null = null;
+
+    try {
+      if (file && type !== 'message') {
+        uploadedFile = await this.cloudinaryService.uploadFile(file);
+        document = uploadedFile.secure_url;
+      }
+
+      const timestamp = Date.now();
+      const escapedText = escapeMarkdown(message);
+      const encodedMessage = encodeURIComponent(message);
+      const newMessage = `[${escapedText}](${this.CLIENT_BASE_URL}/preview?message=${encodedMessage}&time=${timestamp})`;
+
+      switch (type) {
+        case 'photo':
+          return await this.bot.sendPhoto(chatId, document, {
+            caption: newMessage,
+            parse_mode: 'MarkdownV2',
+          });
+        case 'document':
+          return await this.bot.sendDocument(chatId, document, {
+            caption: newMessage,
+            parse_mode: 'MarkdownV2',
+          });
+        default:
+          return await this.bot.sendMessage(chatId, newMessage, {
+            parse_mode: 'MarkdownV2',
+          });
+      }
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    } finally {
+      if (uploadedFile?.public_id) {
+        try {
+          await this.cloudinaryService.deleteFile(uploadedFile.public_id);
+        } catch (cleanupError) {
+          console.warn('Failed to delete image from Cloudinary:', cleanupError);
+        }
+      }
+    }
+  }
+
   async sendMessage(sendMessageDto: SendMessageDto) {
     const { chatId, message } = sendMessageDto;
-    const timestamp = Date.now();
-    const text = `[${escapeMarkdown(message)}](${this.CLIENT_BASE_URL}/preview?message=${escapeMarkdown(message)}&time=${timestamp})`;
 
-    return await this.bot.sendMessage(chatId, text, {
-      parse_mode: 'MarkdownV2',
-    });
+    return await this.bot.sendMessage(chatId, message);
   }
 
   async sendPhoto(sentPhotoDto: SendPhotoDto, file?: Express.Multer.File) {
@@ -173,8 +217,7 @@ export class TelegramService {
       }
 
       return await this.bot.sendPhoto(chatId, photo, {
-        caption: escapeMarkdown(message),
-        parse_mode: 'MarkdownV2',
+        caption: message,
       });
     } catch (error) {
       throw new BadRequestException('Error:' + error.message);
@@ -212,53 +255,8 @@ export class TelegramService {
       }
 
       return await this.bot.sendDocument(chatId, document, {
-        caption: escapeMarkdown(message),
-        parse_mode: 'MarkdownV2',
+        caption: message,
       });
-    } catch (error) {
-      throw new BadRequestException(error.message);
-    } finally {
-      if (uploadedFile?.public_id) {
-        try {
-          await this.cloudinaryService.deleteFile(uploadedFile.public_id);
-        } catch (cleanupError) {
-          console.warn('Failed to delete image from Cloudinary:', cleanupError);
-        }
-      }
-    }
-  }
-
-  async sendConfession(
-    sendConfessionDto: SendConfessionDto,
-    file?: Express.Multer.File,
-  ) {
-    const { message, fileUrl, type, chatId } = sendConfessionDto;
-    let document = fileUrl;
-    let uploadedFile: { secure_url: string; public_id: string } | null = null;
-
-    try {
-      if (file && type !== 'message') {
-        uploadedFile = await this.cloudinaryService.uploadFile(file);
-        document = uploadedFile.secure_url;
-      }
-      console.log(uploadedFile);
-
-      switch (type) {
-        case 'photo':
-          return await this.bot.sendPhoto(chatId, document, {
-            caption: escapeMarkdown(message),
-            parse_mode: 'MarkdownV2',
-          });
-        case 'document':
-          return await this.bot.sendDocument(chatId, document, {
-            caption: escapeMarkdown(message),
-            parse_mode: 'MarkdownV2',
-          });
-        default:
-          return await this.bot.sendMessage(chatId, escapeMarkdown(message), {
-            parse_mode: 'MarkdownV2',
-          });
-      }
     } catch (error) {
       throw new BadRequestException(error.message);
     } finally {
@@ -293,22 +291,14 @@ export class TelegramService {
           switch (type) {
             case 'photo':
               return this.bot.sendPhoto(user.chatId, document, {
-                caption: escapeMarkdown(message),
-                parse_mode: 'MarkdownV2',
+                caption: message,
               });
             case 'document':
               return this.bot.sendDocument(user.chatId, document, {
-                caption: escapeMarkdown(message),
-                parse_mode: 'MarkdownV2',
+                caption: message,
               });
             default:
-              return this.bot.sendMessage(
-                user.chatId,
-                escapeMarkdown(message),
-                {
-                  parse_mode: 'MarkdownV2',
-                },
-              );
+              return this.bot.sendMessage(user.chatId, message);
           }
         }),
       );
