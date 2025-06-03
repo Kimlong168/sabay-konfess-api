@@ -1,4 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { TelegramService } from './telegram.service';
 import { Public } from 'src/shared/decorators/public.decorator';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -8,6 +14,8 @@ import { BroadcastMessageDto } from './dto/broadcast-message.dto';
 import { Roles } from 'src/shared/decorators/roles.decorator';
 import { Role } from 'src/shared/constants/role.enum';
 import { SUCCESS_MESSAGES } from 'src/shared/constants/response-messages';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { SendConfessionDto } from './dto/send-confession.dto';
 
 @Controller('telegram')
 export class TelegramController {
@@ -22,23 +30,51 @@ export class TelegramController {
 
   @Public()
   @Post('photo')
-  async sendPhoto(@Body() sentPhotoDto: SendPhotoDto) {
-    const data = await this.telegramService.sendPhoto(sentPhotoDto);
+  @UseInterceptors(FileInterceptor('image'))
+  async sendPhoto(
+    @Body() sentPhotoDto: SendPhotoDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const data = await this.telegramService.sendPhoto(sentPhotoDto, file);
     return { data, message: SUCCESS_MESSAGES.SENT };
   }
 
   @Public()
   @Post('document')
-  async sendDocument(@Body() sendDocumentDto: SendDocumentDto) {
-    const data = await this.telegramService.sendDocument(sendDocumentDto);
+  @UseInterceptors(FileInterceptor('file'))
+  async sendDocument(
+    @Body() sendDocumentDto: SendDocumentDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const data = await this.telegramService.sendDocument(sendDocumentDto, file);
+    return { data, message: SUCCESS_MESSAGES.SENT };
+  }
+
+  @Public()
+  @Post('confession')
+  @UseInterceptors(FileInterceptor('file'))
+  async sendConfession(
+    @Body() sendConfessionDto: SendConfessionDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const data = await this.telegramService.sendConfession(
+      sendConfessionDto,
+      file,
+    );
     return { data, message: SUCCESS_MESSAGES.SENT };
   }
 
   @Roles(Role.ADMIN, Role.SUPERADMIN)
   @Post('broadcast')
-  async broadcastMessage(@Body() broadcastMessageDto: BroadcastMessageDto) {
-    const data =
-      await this.telegramService.broadcastMessage(broadcastMessageDto);
+  @UseInterceptors(FileInterceptor('file'))
+  async broadcastMessage(
+    @Body() broadcastMessageDto: BroadcastMessageDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const data = await this.telegramService.broadcastMessage(
+      broadcastMessageDto,
+      file,
+    );
     return { data, message: SUCCESS_MESSAGES.SENT };
   }
 }

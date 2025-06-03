@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { SendMessageDto } from './dto/send-message.dto';
 import { SendPhotoDto } from './dto/send-photo.dto';
 import { SendDocumentDto } from './dto/send-document.dto';
@@ -9,6 +14,8 @@ import { escapeMarkdown } from 'src/shared/utils/escape-markdown ';
 import { Role } from 'src/shared/constants/role.enum';
 import { ConfigService } from '@nestjs/config';
 import * as TelegramBot from 'node-telegram-bot-api';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
+import { SendConfessionDto } from './dto/send-confession.dto';
 
 @Injectable()
 export class TelegramService {
@@ -17,6 +24,7 @@ export class TelegramService {
 
   constructor(
     private readonly userService: UsersService,
+    private readonly cloudinaryService: CloudinaryService,
     private readonly exceptionFilter: AllExceptionsFilter,
     private configService: ConfigService,
   ) {}
@@ -140,59 +148,186 @@ export class TelegramService {
   async sendMessage(sendMessageDto: SendMessageDto) {
     const { chatId, message } = sendMessageDto;
     const timestamp = Date.now();
-    const text = `[${message}](${this.CLIENT_BASE_URL}/preview?message=${message}&time=${timestamp})`;
+    const text = `[${escapeMarkdown(message)}](${this.CLIENT_BASE_URL}/preview?message=${escapeMarkdown(message)}&time=${timestamp})`;
 
     return await this.bot.sendMessage(chatId, text, {
       parse_mode: 'MarkdownV2',
     });
   }
 
-  async sendPhoto(sentPhotoDto: SendPhotoDto) {
-    const { chatId, message: caption, photoUrl } = sentPhotoDto;
-    return await this.bot.sendPhoto(chatId, photoUrl, {
-      caption,
-      parse_mode: 'MarkdownV2',
-    });
-  }
+  async sendPhoto(sentPhotoDto: SendPhotoDto, file?: Express.Multer.File) {
+    const { chatId, message, photoUrl } = sentPhotoDto;
+    let photo = photoUrl;
+    let uploadedImage: { secure_url: string; public_id: string } | null = null;
 
-  async sendDocument(sendDocumentDto: SendDocumentDto) {
-    const { chatId, message: caption, fileUrl } = sendDocumentDto;
-    return await this.bot.sendDocument(chatId, fileUrl, {
-      caption,
-      parse_mode: 'MarkdownV2',
-    });
-  }
+    try {
+      // If a file is uploaded, upload to Cloudinary
+      if (file) {
+        uploadedImage = await this.cloudinaryService.uploadFile(file);
+        photo = uploadedImage.secure_url;
+      }
 
-  async broadcastMessage(broadcastMessageDto: BroadcastMessageDto) {
-    const { message, type, photoUrl, fileUrl, limit } = broadcastMessageDto;
+      // Validate that we have a valid photo URL to send
+      if (!photo) {
+        throw new NotFoundException('Invalid file URL to send');
+      }
 
-    const usersWithChatId = await this.userService.findAllWithChatId(limit);
-
-    const results = await Promise.allSettled(
-      usersWithChatId.map((user) => {
-        switch (type) {
-          case 'photo':
-            return this.bot.sendPhoto(user.chatId, photoUrl, {
-              caption: message,
-              parse_mode: 'MarkdownV2',
-            });
-          case 'document':
-            return this.bot.sendDocument(user.chatId, fileUrl, {
-              caption: message,
-              parse_mode: 'MarkdownV2',
-            });
-          default:
-            return this.bot.sendMessage(user.chatId, escapeMarkdown(message), {
-              parse_mode: 'MarkdownV2',
-            });
+      return await this.bot.sendPhoto(chatId, photo, {
+        caption: escapeMarkdown(message),
+        parse_mode: 'MarkdownV2',
+      });
+    } catch (error) {
+      throw new BadRequestException('Error:' + error.message);
+    } finally {
+      // Clean up uploaded image if present
+      if (uploadedImage?.public_id) {
+        try {
+          await this.cloudinaryService.deleteFile(uploadedImage.public_id);
+        } catch (cleanupError) {
+          console.warn('Failed to delete image from Cloudinary:', cleanupError);
         }
-      }),
-    );
+      }
+    }
+  }
 
-    return {
-      total: usersWithChatId.length,
-      sent: results.filter((r) => r.status === 'fulfilled').length,
-      failed: results.filter((r) => r.status === 'rejected').length,
-    };
+  async sendDocument(
+    sendDocumentDto: SendDocumentDto,
+    file?: Express.Multer.File,
+  ) {
+    const { chatId, message, fileUrl } = sendDocumentDto;
+    let document = fileUrl;
+    let uploadedFile: { secure_url: string; public_id: string } | null = null;
+
+    try {
+      // If a file is uploaded, upload to Cloudinary
+      if (file) {
+        uploadedFile = await this.cloudinaryService.uploadFile(file);
+        document = uploadedFile.secure_url;
+        console.log(uploadedFile);
+      }
+
+      // Validate that we have a valid photo URL to send
+      if (!document) {
+        throw new NotFoundException('Invalid file URL to send');
+      }
+
+      return await this.bot.sendDocument(chatId, document, {
+        caption: escapeMarkdown(message),
+        parse_mode: 'MarkdownV2',
+      });
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    } finally {
+      if (uploadedFile?.public_id) {
+        try {
+          await this.cloudinaryService.deleteFile(uploadedFile.public_id);
+        } catch (cleanupError) {
+          console.warn('Failed to delete image from Cloudinary:', cleanupError);
+        }
+      }
+    }
+  }
+
+  async sendConfession(
+    sendConfessionDto: SendConfessionDto,
+    file?: Express.Multer.File,
+  ) {
+    const { message, fileUrl, type, chatId } = sendConfessionDto;
+    let document = fileUrl;
+    let uploadedFile: { secure_url: string; public_id: string } | null = null;
+
+    try {
+      if (file && type !== 'message') {
+        uploadedFile = await this.cloudinaryService.uploadFile(file);
+        document = uploadedFile.secure_url;
+      }
+      console.log(uploadedFile);
+
+      switch (type) {
+        case 'photo':
+          return await this.bot.sendPhoto(chatId, document, {
+            caption: escapeMarkdown(message),
+            parse_mode: 'MarkdownV2',
+          });
+        case 'document':
+          return await this.bot.sendDocument(chatId, document, {
+            caption: escapeMarkdown(message),
+            parse_mode: 'MarkdownV2',
+          });
+        default:
+          return await this.bot.sendMessage(chatId, escapeMarkdown(message), {
+            parse_mode: 'MarkdownV2',
+          });
+      }
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    } finally {
+      if (uploadedFile?.public_id) {
+        try {
+          await this.cloudinaryService.deleteFile(uploadedFile.public_id);
+        } catch (cleanupError) {
+          console.warn('Failed to delete image from Cloudinary:', cleanupError);
+        }
+      }
+    }
+  }
+
+  async broadcastMessage(
+    broadcastMessageDto: BroadcastMessageDto,
+    file?: Express.Multer.File,
+  ) {
+    const { message, fileUrl, limit, type } = broadcastMessageDto;
+    let document = fileUrl;
+    let uploadedFile: { secure_url: string; public_id: string } | null = null;
+
+    try {
+      const usersWithChatId = await this.userService.findAllWithChatId(limit);
+
+      if (file && type !== 'message') {
+        uploadedFile = await this.cloudinaryService.uploadFile(file);
+        document = uploadedFile.secure_url;
+      }
+
+      const results = await Promise.allSettled(
+        usersWithChatId.map((user) => {
+          switch (type) {
+            case 'photo':
+              return this.bot.sendPhoto(user.chatId, document, {
+                caption: escapeMarkdown(message),
+                parse_mode: 'MarkdownV2',
+              });
+            case 'document':
+              return this.bot.sendDocument(user.chatId, document, {
+                caption: escapeMarkdown(message),
+                parse_mode: 'MarkdownV2',
+              });
+            default:
+              return this.bot.sendMessage(
+                user.chatId,
+                escapeMarkdown(message),
+                {
+                  parse_mode: 'MarkdownV2',
+                },
+              );
+          }
+        }),
+      );
+
+      return {
+        total: usersWithChatId.length,
+        sent: results.filter((r) => r.status === 'fulfilled').length,
+        failed: results.filter((r) => r.status === 'rejected').length,
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    } finally {
+      if (uploadedFile?.public_id) {
+        try {
+          await this.cloudinaryService.deleteFile(uploadedFile.public_id);
+        } catch (cleanupError) {
+          console.warn('Failed to delete image from Cloudinary:', cleanupError);
+        }
+      }
+    }
   }
 }

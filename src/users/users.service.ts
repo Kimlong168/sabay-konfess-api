@@ -29,7 +29,7 @@ export class UsersService {
       userEntity.password = passwordHash;
 
       if (file) {
-        const image = await this.cloudinaryService.uploadImage(file);
+        const image = await this.cloudinaryService.uploadFile(file);
         userEntity.profileImage = image.secure_url;
       }
 
@@ -73,7 +73,7 @@ export class UsersService {
     }
 
     if (file) {
-      const image = await this.cloudinaryService.uploadImage(file);
+      const image = await this.cloudinaryService.uploadFile(file);
       user.profileImage = image.secure_url;
     }
 

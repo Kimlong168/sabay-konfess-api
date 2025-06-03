@@ -12,7 +12,7 @@ import {
 import { SponsorshipsService } from './sponsorships.service';
 import { CreateSponsorshipDto } from './dto/create-sponsorship.dto';
 import { UpdateSponsorshipDto } from './dto/update-sponsorship.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { SUCCESS_MESSAGES } from 'src/shared/constants/response-messages';
 import { Roles } from 'src/shared/decorators/roles.decorator';
 import { Role } from 'src/shared/constants/role.enum';
@@ -23,7 +23,7 @@ export class SponsorshipsController {
   constructor(private readonly sponsorshipsService: SponsorshipsService) {}
 
   @Post()
-  @UseInterceptors(FilesInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image'))
   async create(
     @Body() createSponsorshipDto: CreateSponsorshipDto,
     @UploadedFile() file: Express.Multer.File,
@@ -48,7 +48,7 @@ export class SponsorshipsController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FilesInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image'))
   async update(
     @Param('id') id: string,
     @Body() updateSponsorshipDto: UpdateSponsorshipDto,

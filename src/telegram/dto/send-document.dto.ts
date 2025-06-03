@@ -1,8 +1,8 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { SendMessageDto } from './send-message.dto';
 
 export class SendDocumentDto extends SendMessageDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  readonly fileUrl: string;
+  readonly fileUrl?: string;
 }

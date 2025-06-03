@@ -23,7 +23,7 @@ export class SponsorshipsService {
       this.sponsorshipsRepository.create(createSponsorshipDto);
 
     if (file) {
-      const image = await this.cloudinaryService.uploadImage(file);
+      const image = await this.cloudinaryService.uploadFile(file);
       sponsorEntity.image = image.secure_url;
     }
 
@@ -66,7 +66,7 @@ export class SponsorshipsService {
     }
 
     if (file) {
-      const image = await this.cloudinaryService.uploadImage(file);
+      const image = await this.cloudinaryService.uploadFile(file);
       sponsor.image = image.secure_url;
     }
 

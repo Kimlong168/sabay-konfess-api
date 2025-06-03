@@ -13,12 +13,16 @@ export class CloudinaryService {
     });
   }
 
-  async uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
+  async uploadFile(
+    file: Express.Multer.File,
+    folder: string = 'Sabay-Konfess',
+  ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
           {
-            folder: 'Sabay-Konfess',
+            folder,
+            resource_type: 'auto',
           },
           (error, result) => {
             if (error) return reject(error);
@@ -29,18 +33,30 @@ export class CloudinaryService {
     });
   }
 
-  async deleteImage(publicId: string): Promise<{ result: string }> {
+  async deleteFile(publicId: string): Promise<{ result: string }> {
     return cloudinary.uploader.destroy(publicId);
   }
 
-  async replaceImage(
+  async replaceFile(
     oldPublicId: string,
     newFile: Express.Multer.File,
+    folder: string = 'Sabay-Konfess',
   ): Promise<UploadApiResponse> {
-    return await cloudinary.uploader.upload(newFile.path, {
-      public_id: oldPublicId,
-      overwrite: true,
-      resource_type: 'image', // or 'auto' if unsure
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder,
+            public_id: oldPublicId,
+            overwrite: true,
+            resource_type: 'auto',
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          },
+        )
+        .end(newFile.buffer);
     });
   }
 }
